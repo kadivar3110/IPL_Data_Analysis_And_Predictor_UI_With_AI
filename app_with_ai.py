@@ -3,9 +3,12 @@ import pandas as pd
 import os
 import plotly.express as px
 import numpy as np
-
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.preprocessing import OneHotEncoder
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
+from sklearn.model_selection import train_test_split
+import matplotlib.pyplot as plt
 # Get the directory of the current script
 script_dir = os.path.dirname(os.path.abspath(__file__))
 
@@ -132,64 +135,232 @@ df_ipl, Team_names = rearenge_name(df_ipl)
 Team_names.insert(0, 'Overall')
 seasons.insert(0, 'Overall')
 
-# Old code commented out to prevent display
-old_code_reference = '''
-st.sidebar.title("IPL Analysis")
-option = st.sidebar.radio("Select Option", ["OverAll Analysis", "Statistical Analysis", 'Player Analysis', "City Analysis"])
+# Page Configuration
+st.set_page_config(
+    page_title="IPL Analysis & Prediction",
+    page_icon="🏏",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
 
+# Custom CSS for better UI
+st.markdown("""
+    <style>
+    /* Main theme colors */
+    :root {
+        --primary-color: #FF6B35;
+        --secondary-color: #004E89;
+        --success-color: #06A77D;
+        --background-color: #F7F9FC;
+    }
+    
+    /* Sidebar styling */
+    [data-testid="stSidebar"] {
+        background: linear-gradient(180deg, #1a1a2e 0%, #16213e 100%);
+        padding-top: 2rem;
+    }
+    
+    [data-testid="stSidebar"] * {
+        color: #FFFFFF !important;
+    }
+    
+    [data-testid="stSidebar"] .stRadio > label {
+        font-size: 1.1rem;
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+    }
+    
+    /* Fix selectbox dropdown in sidebar */
+    [data-testid="stSidebar"] [data-baseweb="select"] > div {
+        background-color: #2E3856 !important;
+        border: 1px solid #4A5568 !important;
+    }
+    
+    /* Main content styling */
+    .main {
+        background-color: var(--background-color);
+    }
+    
+    h1 {
+        color: var(--secondary-color);
+        font-weight: 700;
+        padding-bottom: 1rem;
+        border-bottom: 3px solid var(--primary-color);
+        margin-bottom: 2rem;
+    }
+    
+    h2, h3 {
+        color: var(--secondary-color);
+        font-weight: 600;
+        margin-top: 1.5rem;
+    }
+    
+    /* Metric cards */
+    [data-testid="stMetricValue"] {
+        font-size: 2rem;
+        font-weight: 700;
+        color: var(--secondary-color);
+    }
+    
+    [data-testid="stMetricLabel"] {
+        font-size: 1rem;
+        color: #6B7280;
+        font-weight: 500;
+    }
+    
+    /* Buttons */
+    .stButton > button {
+        background-color: var(--primary-color);
+        color: white;
+        font-weight: 600;
+        border-radius: 8px;
+        border: none;
+        padding: 0.5rem 2rem;
+        transition: all 0.3s ease;
+    }
+    
+    .stButton > button:hover {
+        background-color: #E55A2B;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(255, 107, 53, 0.4);
+    }
+    
+    /* Dataframe styling */
+    [data-testid="stDataFrame"] {
+        border-radius: 10px;
+        overflow: hidden;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+    
+    /* Info boxes */
+    .stAlert {
+        border-radius: 8px;
+        border-left: 4px solid var(--primary-color);
+    }
+    
+    /* Plotly charts */
+    .js-plotly-plot {
+        border-radius: 10px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    }
+    </style>
+    """, unsafe_allow_html=True)
 
-if option == "OverAll Analysis":
-    selected_season = st.sidebar.selectbox("Select Season", seasons)
-    selected_team = st.sidebar.selectbox("Select Winner Team", Team_names)
-    df_ipl = return_by_selection(df_ipl, selected_team, selected_season)
+st.sidebar.title("🏏 IPL Analysis & Prediction")
+st.sidebar.markdown("---")
+
+# Main Section Selection with icons and descriptions
+st.sidebar.markdown("### 📂 Choose Your Journey")
+section = st.sidebar.radio(
+    "",
+    ["📊 Analysis", "🔮 Prediction"],
+    help="Select whether you want to analyze historical data or make predictions"
+)
+
+st.sidebar.markdown("---")
+
+if section == "📊 Analysis":
+    st.sidebar.markdown("### 📈 Analysis Options")
+    option = st.sidebar.radio(
+        "",
+        ["Overall Analysis", "Statistical Analysis", "Player Analysis", "City Analysis"],
+        help="Choose the type of analysis you want to explore"
+    )
+    st.sidebar.info("💡 **Tip:** Explore historical IPL data from 2008-2025")
+    
+elif section == "🔮 Prediction":
+    st.sidebar.markdown("### 🎯 Prediction Models")
+    option = st.sidebar.radio(
+        "",
+        ["Predict Match Winner", "Player Performance Prediction"],
+        help="Use AI models to predict match outcomes or player performance"
+    )
+    st.sidebar.success("🤖 **Powered by:** Machine Learning & ARIMA models")
+
+if option == "Overall Analysis":
+    st.title("📊 Overall IPL Analysis")
+    st.markdown("### 🔍 Explore match details based on Team and Season")
+    
+    col1, col2 = st.columns(2)
+    with col1:
+        selected_season = st.selectbox("📅 Select Season", seasons, help="Choose a specific season or 'Overall' for all seasons")
+    with col2:
+        selected_team = st.selectbox("🏆 Select Winner Team", Team_names, help="Choose a team or 'Overall' for all teams")
+    
+    with st.spinner('Loading data...'):
+        df_filtered = return_by_selection(df_ipl, selected_team, selected_season)
 
     if selected_team == 'Overall' and selected_season == 'Overall':
-        st.title("Overall IPL Analysis")
+        st.success(f"📌 Showing all IPL matches ({len(df_filtered)} total)")
     elif selected_team != 'Overall' and selected_season == 'Overall':
-        st.title(f"Overall Analysis of {selected_team} Wins")
+        st.success(f"📌 Showing all {selected_team} wins ({len(df_filtered)} matches)")
     elif selected_team == 'Overall' and selected_season != 'Overall':
-        st.title(f"Overall Analysis of Season {selected_season}")
+        st.success(f"📌 Showing Season {selected_season} matches ({len(df_filtered)} total)")
     else:
-        st.title(f"Overall Analysis of {selected_team} Wins in Season {selected_season}")
+        st.success(f"📌 Showing {selected_team} wins in Season {selected_season} ({len(df_filtered)} matches)")
 
-    st.dataframe(df_ipl)
+    with st.expander("📋 View Match Data", expanded=True):
+        st.dataframe(df_filtered, use_container_width=True, height=400)
 
 if option == "Statistical Analysis":
-    st.title("Statistical Analysis")
+    st.title("📈 Statistical Analysis")
+    st.markdown("### 📊 Deep dive into IPL statistics and trends")
+    
+    st.markdown("---")
+    st.subheader("🎯 Key Metrics")
     col1, col2, col3 = st.columns(3)
-    col1.metric("Total Teams", len(df_ipl['batting_team'].unique()))
-    col2.metric("Total Matches", len(df_ipl['match_id'].unique()))
-    col3.metric("Total Seasons", len(df_ipl['season'].unique()))
+    with col1:
+        st.metric("🏏 Total Teams", len(df_ipl['batting_team'].unique()), help="Number of unique teams in IPL history")
+    with col2:
+        st.metric("🎮 Total Matches", len(df_ipl['match_id'].unique()), help="Total matches played")
+    with col3:
+        st.metric("📅 Total Seasons", len(df_ipl['season'].unique()), help="Number of IPL seasons")
 
     col1, col2 = st.columns(2)
-    col1.metric("Total Runs by Batter", 355373)
-    col2.metric("Total Wickets by Bowler", 12650)
+    with col1:
+        st.metric("⚡ Total Runs", "355,373", help="Total runs scored by all batters")
+    with col2:
+        st.metric("🎯 Total Wickets", "12,650", help="Total wickets taken by all bowlers")
+    
+    st.markdown("---")
+    st.subheader("📈 Trends Over Time")
+    
+    tab1, tab2, tab3 = st.tabs(["📊 Runs Analysis", "🎮 Matches Analysis", "🏏 Teams Analysis"])
+    
+    with tab1:
+        mean_by_season = df_ipl.groupby('season')['targeted_total_run'].mean().reset_index()
+        mean_by_season = mean_by_season.rename(columns={'targeted_total_run':'Average Runs'})
+        fig = px.line(mean_by_season, x='season', y='Average Runs', 
+                     title='📈 Average Runs per Season',
+                     markers=True)
+        fig.update_traces(line_color='#FF6B35', line_width=3)
+        fig.update_layout(xaxis_tickangle=-45, hovermode='x unified')
+        st.plotly_chart(fig, use_container_width=True)
 
-    mean_by_season = df_ipl.groupby('season')['targeted_total_run'].mean().reset_index() # Convert Series to DataFrame
-    mean_by_season = mean_by_season.rename(columns={'targeted_total_run':'Avrage Run'}) # Now 'columns' argument is valid
-    fig = px.line(mean_by_season, x='season', y='Avrage Run', title='Average Run per Season')
-    fig.update_layout(xaxis_tickangle=-45)
-    st.plotly_chart(fig)
+    with tab2:
+        matches_per_season = df_ipl.groupby('season')['match_id'].count().reset_index()
+        matches_per_season.rename(columns={'match_id': 'Total Matches'}, inplace=True)
+        fig = px.bar(matches_per_season, x='season', y='Total Matches',
+                 title='🎮 Total Matches per Season',
+                 color='Total Matches',
+                 color_continuous_scale='Blues')
+        fig.update_layout(xaxis_tickangle=-45)
+        st.plotly_chart(fig, use_container_width=True)
 
-    matches_per_season = df_ipl.groupby('season')['match_id'].count().reset_index()
-    matches_per_season.rename(columns={'match_id': 'Total Matches'}, inplace=True)
-
-    fig = px.line(matches_per_season, x='season', y='Total Matches',
-             title='Total Number of Matches per Season',
-             labels={'season': 'Season', 'Total Matches': 'Number of Matches'})
-
-    fig.update_layout(xaxis_tickangle=-45)
-    st.plotly_chart(fig)
-
-    uni = df_ipl.groupby('season')['batting_team'].nunique().reset_index()
-    uni.rename(columns={'batting_team': 'Total Teams'}, inplace=True)
-    fig = px.line(uni, x='season', y='Total Teams', title='Total Number of Teams per Season')
-    fig.update_layout(xaxis_tickangle=-45)
-    st.plotly_chart(fig)
+    with tab3:
+        uni = df_ipl.groupby('season')['batting_team'].nunique().reset_index()
+        uni.rename(columns={'batting_team': 'Total Teams'}, inplace=True)
+        fig = px.area(uni, x='season', y='Total Teams', 
+                     title='🏏 Number of Teams per Season',
+                     markers=True)
+        fig.update_traces(fillcolor='rgba(0, 78, 137, 0.3)', line_color='#004E89')
+        fig.update_layout(xaxis_tickangle=-45)
+        st.plotly_chart(fig, use_container_width=True)
+    
+    st.markdown("---")
+    st.subheader("🏆 Team Performance Analysis")
 
 
-
-# Re-create team_stats_df
     team_stats = {
         'Team': [],
         'Matches Played': [],
@@ -197,7 +368,6 @@ if option == "Statistical Analysis":
         'Win Ratio': []
     }
 
-    # Get all unique team names from batting and bowling teams
     all_teams = pd.concat([df_ipl['batting_team'], df_ipl['bowling_team']]).unique()
 
     for team in all_teams:
@@ -217,10 +387,8 @@ if option == "Statistical Analysis":
     team_stats_df = pd.DataFrame(team_stats)
     team_stats_df = team_stats_df.sort_values(by='Win Ratio', ascending=False)
 
-    # Create figure with secondary y-axis
     fig = make_subplots(rows=1, cols=1, specs=[[{'secondary_y': True}]])
 
-    # Add traces for Matches Played and Matches Won on primary y-axis
     fig.add_trace(
         go.Bar(name='Matches Played', x=team_stats_df['Team'], y=team_stats_df['Matches Played'], marker_color='skyblue'),
         secondary_y=False,
@@ -229,20 +397,16 @@ if option == "Statistical Analysis":
         go.Bar(name='Matches Won', x=team_stats_df['Team'], y=team_stats_df['Matches Won'], marker_color='lightgreen'),
         secondary_y=False,
     )
-
-    # Add trace for Win Ratio on secondary y-axis
     fig.add_trace(
         go.Scatter(name='Win Ratio', x=team_stats_df['Team'], y=team_stats_df['Win Ratio'], mode='lines+markers', marker_color='red'),
         secondary_y=True,
     )
-    # Add figure title and labels
     fig.update_layout(
         title_text='Team Performance: Matches Played, Won, and Win Ratio',
         xaxis_title='Team',
-        barmode='group' # Group the bars
+        barmode='group' 
     )
 
-    # Set y-axes titles
     fig.update_yaxes(title_text='Number of Matches', secondary_y=False)
     fig.update_yaxes(title_text='Win Ratio', secondary_y=True, range=[0, 1])
 
@@ -460,324 +624,368 @@ if option == "City Analysis":
         fig = px.pie(values=values, names=labels, title=f'Total Matches Host by {city_name}')
         st.plotly_chart(fig)
     city_ana(selected_city)
-'''
 
-# --- New Improved UI Code ---
+if option == "Predict Match Winner":
+    st.title("Predict Match Winner")
+    required_cols = ['match_id', 'batting_team', 'bowling_team', 'toss_winner', 'toss_decision', 'match_won_by', 'runs_total', 'innings']
 
-st.set_page_config(page_title="IPL Analysis System", page_icon="🏏", layout="wide")
+    match_df = df.groupby(['match_id', 'batting_team',
+                       'bowling_team', 'toss_winner', 'toss_decision',
+                       'match_won_by', 'innings'])['runs_total'].sum().reset_index()
+        
+    match_df['batting_team'] = match_df['batting_team'].replace({
+    'Delhi Daredevils': 'Delhi Capitals',
+    'Kings XI Punjab': 'Punjab Kings',
+    'Royal Challengers Bangalore': 'Royal Challengers Bengaluru',
+    'Rising Pune Supergiants': 'Rising Pune Supergiant'
+    })
 
-# Custom CSS for better styling
-st.markdown("""
-    <style>
-    [data-testid="stSidebar"] {
-        background-color: #1E1E1E;
-    }
-    [data-testid="stSidebar"] * {
-        color: #FFFFFF !important;
-    }
-    h1, h2, h3 {
-        color: #2c3e50;
-        font-family: 'Helvetica Neue', sans-serif;
-    }
-    .stMetric {
-        background-color: #ffffff;
-        padding: 15px;
-        border-radius: 10px;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-        text-align: center;
-    }
-    .stDataFrame {
-        border-radius: 10px;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-    }
-    </style>
-    """, unsafe_allow_html=True)
+    match_df['match_won_by'] = match_df['match_won_by'].replace({
+    'Delhi Daredevils': 'Delhi Capitals',
+    'Kings XI Punjab': 'Punjab Kings',
+    'Royal Challengers Bangalore': 'Royal Challengers Bengaluru',
+    'Rising Pune Supergiants': 'Rising Pune Supergiant'
+    })
 
-st.sidebar.title("🏏 IPL Analysis")
-st.sidebar.markdown("---")
-option = st.sidebar.radio("Select Analysis Type", ["Overall Analysis", "Statistical Analysis", "Player Analysis", "City Analysis"])
-st.sidebar.markdown("---")
-st.sidebar.info("Explore IPL data from 2008 to 2025")
+    match_df['toss_winner'] = match_df['toss_winner'].replace({
+    'Delhi Daredevils': 'Delhi Capitals',
+    'Kings XI Punjab': 'Punjab Kings',
+    'Royal Challengers Bangalore': 'Royal Challengers Bengaluru',
+    'Rising Pune Supergiants': 'Rising Pune Supergiant'
+    })
 
-if option == "Overall Analysis":
-    st.title("📊 Overall IPL Analysis")
-    st.markdown("### Explore match details based on Team and Season")
+    match_df['bowling_team'] = match_df['bowling_team'].replace({
+    'Delhi Daredevils': 'Delhi Capitals',
+    'Kings XI Punjab': 'Punjab Kings',
+    'Royal Challengers Bangalore': 'Royal Challengers Bengaluru',
+    'Rising Pune Supergiants': 'Rising Pune Supergiant'
+    })
+
+    teams_to_remove = ['Deccan Chargers', 'Gujarat Lions', 'Kochi Tuskers Kerala']
+
+    match_df = match_df[~match_df['batting_team'].isin(teams_to_remove)]
+    match_df = match_df[~match_df['bowling_team'].isin(teams_to_remove)]
+    match_df = match_df[~match_df['toss_winner'].isin(teams_to_remove)]
+    match_df = match_df[~match_df['match_won_by'].isin(teams_to_remove)]
+
+    avg_runs_1 = match_df[match_df['innings'] == 1].groupby('batting_team')['runs_total'].mean().reset_index().rename(columns={'runs_total': 'avg_runs_1st'})
+    avg_runs_2 = match_df[match_df['innings'] == 2].groupby('batting_team')['runs_total'].mean().reset_index().rename(columns={'runs_total': 'avg_runs_2nd'})
+
+    match_df = pd.merge(match_df, avg_runs_1, on='batting_team', how='left')
+    match_df = pd.merge(match_df, avg_runs_2, on='batting_team', how='left')
+
+    match_df['team_in_avg_runs'] = np.where(match_df['innings'] == 1, match_df['avg_runs_1st'], match_df['avg_runs_2nd'])
+    match_df['team_in_avg_runs'] = match_df['team_in_avg_runs'].fillna(match_df['runs_total'].mean())
     
+
+    match_df['is_winner'] = (match_df['batting_team'] == match_df['match_won_by']).astype(int)
+    h2h = match_df.groupby(['batting_team', 'bowling_team'])['is_winner'].sum().reset_index().rename(columns={'is_winner': 'winner_h2h_wins'})
+
+    match_df = pd.merge(match_df, h2h, on=['batting_team', 'bowling_team'], how='left')
+
+    X = match_df[['toss_winner', 'toss_decision', 'batting_team', 'bowling_team', 'team_in_avg_runs', 'winner_h2h_wins']]
+    y = match_df['is_winner']
+
+    # X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+    st.subheader("Predict Match Winner")
+        
     col1, col2 = st.columns(2)
+    
+        # Filter out 'Overall' from Team_names if present, or use unique teams from df
+    teams_list = sorted(match_df['batting_team'].unique().tolist())
+        
     with col1:
-        selected_season = st.selectbox("Select Season", seasons)
+        team1 = st.selectbox("Team 1", teams_list)
+        team2 = st.selectbox("Team 2", [t for t in teams_list if t != team1])
+            
     with col2:
-        selected_team = st.selectbox("Select Winner Team", Team_names)
+        toss_winner = st.selectbox("Toss Winner", [team1, team2])
+        toss_decision = st.selectbox("Toss Decision", df['toss_decision'].unique())
     
-    df_filtered = return_by_selection(df_ipl, selected_team, selected_season)
-
-    if selected_team == 'Overall' and selected_season == 'Overall':
-        st.subheader("Overall IPL Data")
-    elif selected_team != 'Overall' and selected_season == 'Overall':
-        st.subheader(f"Overall Analysis of {selected_team} Wins")
-    elif selected_team == 'Overall' and selected_season != 'Overall':
-        st.subheader(f"Overall Analysis of Season {selected_season}")
+    if toss_decision == 'bat':
+        batting_team = toss_winner
+        bowling_team = team2 if toss_winner == team1 else team1
     else:
-        st.subheader(f"Analysis of {selected_team} Wins in Season {selected_season}")
+        bowling_team = toss_winner
+        batting_team = team2 if toss_winner == team1 else team1
+   
+    avg_runs_val = avg_runs_1[avg_runs_1['batting_team'] == batting_team]['avg_runs_1st'].values
+    input_avg_runs = avg_runs_val[0] if len(avg_runs_val) > 0 else 160.0 
+        
+    h2h_val = h2h[(h2h['batting_team'] == batting_team) & (h2h['bowling_team'] == bowling_team)]['winner_h2h_wins'].values
+    input_h2h = h2h_val[0] if len(h2h_val) > 0 else 0
 
-    st.dataframe(df_filtered, use_container_width=True)
+    st.info(f"**Match Setup:** {batting_team} bats first vs {bowling_team}")
+    st.info(f"**Stats:** {batting_team} 1st Inn Avg: {input_avg_runs:.1f} | H2H Wins vs {bowling_team}: {input_h2h}")
+        
 
-elif option == "Statistical Analysis":
-    st.title("📈 Statistical Analysis")
+    input_data = pd.DataFrame({
+        'toss_winner': [toss_winner],
+        'toss_decision': [toss_decision],
+        'batting_team': [batting_team],
+        'bowling_team': [bowling_team],
+        'team_in_avg_runs': [input_avg_runs],
+        'winner_h2h_wins': [input_h2h]
+    })
+
+    One = OneHotEncoder(sparse_output = False)
+    X_hot = One.fit_transform(X)
+    input_hot = One.transform(input_data)
+    rnd = RandomForestClassifier(n_estimators=50, random_state=42, max_depth=5, min_samples_split=10)
+    random = rnd.fit(X_hot, y)
+    proba = random.predict_proba(input_hot)[0][1]
+
+    if st.button("Predict Winner"):
+        prediction = random.predict(input_hot)[0]
+        if prediction == 1:
+            probability = proba
+            st.success(f"**Predicted Winner:**---> {batting_team}")
+        else:
+            probability = 1 -  proba
+            st.success(f"**Predicted Winner:**---> {bowling_team}")
+
+        st.info(f"**Winning Probability:** {probability*100:.2f}%")
+
+elif option == "Player Performance Prediction":
+    st.title("Player Performance Prediction")
+    st.sidebar.subheader('select bowler or batter for performance prediction')
+    player_type = st.sidebar.selectbox("Select Player Type", ['Batter', 'Bowler'])
+    df_dami = df[['match_id', 'date', 'batter', 'batter_runs', 'season']]
+    want_season = ['2021', '2022','2023', '2024', '2025']
+
+    df_dami['season'] = df_dami['season'].astype(str)
+
+    df_dami['season'] = df_dami['season'].replace({
+        '2007/08': '2008',
+        '2009/10': '2010',
+        '2020/21': '2020'
+    })
+
+    df_dami = df_dami[df_dami['season'].isin(want_season)]
     
-    # Top Metrics
-    col1, col2, col3 = st.columns(3)
-    col1.metric("Total Teams", len(df_ipl['batting_team'].unique()))
-    col2.metric("Total Matches", len(df_ipl['match_id'].unique()))
-    col3.metric("Total Seasons", len(df_ipl['season'].unique()))
-    
-    st.markdown("---")
-    
-    col1, col2 = st.columns(2)
-    col1.metric("Total Runs (Batters)", 355373)
-    col2.metric("Total Wickets (Bowlers)", 12650)
-    
-    st.markdown("---")
 
-    tab1, tab2, tab3 = st.tabs(["Season Stats", "Team Performance", "Toss Analysis"])
-    
-    with tab1:
-        st.subheader("Season-wise Statistics")
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            mean_by_season = df_ipl.groupby('season')['targeted_total_run'].mean().reset_index()
-            mean_by_season = mean_by_season.rename(columns={'targeted_total_run':'Average Run'})
-            fig = px.line(mean_by_season, x='season', y='Average Run', title='Average Runs per Season', markers=True)
-            fig.update_layout(xaxis_tickangle=-45, template="plotly_white")
-            st.plotly_chart(fig, use_container_width=True)
-            
-        with col2:
-            matches_per_season = df_ipl.groupby('season')['match_id'].count().reset_index()
-            matches_per_season.rename(columns={'match_id': 'Total Matches'}, inplace=True)
-            fig = px.line(matches_per_season, x='season', y='Total Matches', title='Total Matches per Season', markers=True)
-            fig.update_layout(xaxis_tickangle=-45, template="plotly_white")
-            st.plotly_chart(fig, use_container_width=True)
-            
-        uni = df_ipl.groupby('season')['batting_team'].nunique().reset_index()
-        uni.rename(columns={'batting_team': 'Total Teams'}, inplace=True)
-        fig = px.bar(uni, x='season', y='Total Teams', title='Number of Teams per Season', color='Total Teams')
-        fig.update_layout(xaxis_tickangle=-45, template="plotly_white")
-        st.plotly_chart(fig, use_container_width=True)
+    dami_df = df_dami[['match_id', 'date', 'batter', 'batter_runs']]
+    dami_df = dami_df.groupby(['date', 'batter', 'match_id'])['batter_runs'].max().reset_index()  
+    uni_batter = dami_df['batter'].unique()
+    #if player_type == 'Batter':
+        #st.subheader('Batter Performance Prediction')
+        #selected_batter = st.selectbox("Select Batter", uni_batter)
+    # selected_batter = st.selectbox("Select Batter", uni_batter)
+    def batter_pred(batter):
+        df_dami = df[['match_id', 'date', 'batter', 'batter_runs', 'season']]
+        want_season = ['2021', '2022','2023', '2024', '2025']
 
-    with tab2:
-        st.subheader("Team Performance")
-        
-        # Team Stats Calculation
-        team_stats = {'Team': [], 'Matches Played': [], 'Matches Won': [], 'Win Ratio': []}
-        all_teams = pd.concat([df_ipl['batting_team'], df_ipl['bowling_team']]).unique()
+        df_dami['season'] = df_dami['season'].astype(str)
 
-        for team in all_teams:
-            matches_played = ((df_ipl['batting_team'] == team) | (df_ipl['bowling_team'] == team)).sum()
-            matches_won = (df_ipl['match_won_by'] == team).sum()
-            win_ratio = matches_won / matches_played if matches_played > 0 else 0
-            
-            team_stats['Team'].append(team)
-            team_stats['Matches Played'].append(matches_played)
-            team_stats['Matches Won'].append(matches_won)
-            team_stats['Win Ratio'].append(win_ratio)
+        df_dami['season'] = df_dami['season'].replace({
+            '2007/08': '2008',
+            '2009/10': '2010',
+            '2020/21': '2020'
+        })
 
-        team_stats_df = pd.DataFrame(team_stats).sort_values(by='Win Ratio', ascending=False)
+        df_dami = df_dami[df_dami['season'].isin(want_season)]
 
-        fig = make_subplots(rows=1, cols=1, specs=[[{'secondary_y': True}]])
-        fig.add_trace(go.Bar(name='Matches Played', x=team_stats_df['Team'], y=team_stats_df['Matches Played'], marker_color='#3498db'), secondary_y=False)
-        fig.add_trace(go.Bar(name='Matches Won', x=team_stats_df['Team'], y=team_stats_df['Matches Won'], marker_color='#2ecc71'), secondary_y=False)
-        fig.add_trace(go.Scatter(name='Win Ratio', x=team_stats_df['Team'], y=team_stats_df['Win Ratio'], mode='lines+markers', marker_color='#e74c3c'), secondary_y=True)
+        dami_df = df_dami[['match_id', 'date', 'batter', 'batter_runs']]
+        dami_df = dami_df.groupby(['date', 'batter', 'match_id'])['batter_runs'].max().reset_index()  
+        uni_batter = dami_df['batter'].unique()
+        ## change for seasonality
 
-        fig.update_layout(title_text='Team Performance: Matches Played vs Won vs Win Ratio', barmode='group', template="plotly_white")
-        fig.update_yaxes(title_text='Number of Matches', secondary_y=False)
-        fig.update_yaxes(title_text='Win Ratio', secondary_y=True, range=[0, 1])
-        fig.update_xaxes(tickangle=-45)
-        st.plotly_chart(fig, use_container_width=True)
-        
-        st.markdown("#### Maximum Wins by a Single Team per Season")
-        max_wins = df_ipl.groupby(['season', 'match_won_by']).size().reset_index(name='wins')
-        max_wins = max_wins.loc[max_wins.groupby('season')['wins'].idxmax()]
-        fig = px.bar(max_wins, x='season', y='wins', color='match_won_by', title='Most Dominant Team per Season')
-        fig.update_layout(xaxis_tickangle=-45, template="plotly_white")
-        st.plotly_chart(fig, use_container_width=True)
+        season_df = df[['match_id', 'season']]
+        season_df = season_df.drop_duplicates(subset=['match_id'])
+        dami_df = pd.merge(dami_df, season_df, on='match_id', how='left')
 
-    with tab3:
-        st.subheader("Toss Impact")
-        df_ipl['toss_match_winner'] = (df_ipl['toss_winner'] == df_ipl['match_won_by'])
-        toss_win = df_ipl['toss_match_winner'].value_counts().reset_index()
-        toss_win.columns = ['Toss Winner Won Match', 'Count']
-        
-        fig = px.pie(toss_win, values='Count', names='Toss Winner Won Match', title='Does Winning Toss Mean Winning Match?', hole=0.4)
-        fig.update_traces(textposition='inside', textinfo='percent+label')
-        st.plotly_chart(fig, use_container_width=True)
+        ## end change for seasonality
+        dami_batter = dami_df[dami_df['batter'] == batter]
+        dami_batter['date'] = pd.to_datetime(dami_batter['date'])
+        dami_batter.set_index('date', inplace=True)
 
-elif option == "Player Analysis":
-    st.title("👤 Player Analysis")
-    
-    tab1, tab2 = st.tabs(["Bowler Analysis", "Batter Analysis"])
-    
-    with tab1:
-        st.subheader("Bowler Statistics")
-        
-        # Prepare Bowler Data
-        bowler_df = df.groupby(['match_id', 'bowler'])['bowler_wicket'].sum().reset_index()
-        bowler_df = pd.merge(bowler_df, df_ipl[['match_id', 'season']].drop_duplicates(), on='match_id', how='left')
-        bowler_df = pd.merge(bowler_df, df[['match_id', 'stage']].drop_duplicates(), on='match_id', how='left')
-        bowler_df['season'] = bowler_df['season'].astype('Int64')
-        
-        uni_bowler = bowler_df['bowler'].unique().tolist()
-        selected_bowler = st.selectbox("Select Bowler", uni_bowler, key="bowler_select")
-        
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            all_df = bowler_df[bowler_df['bowler'] == selected_bowler]
-            all_wk_by_season = all_df.groupby('season')['bowler_wicket'].sum().reset_index()
-            fig = px.bar(all_wk_by_season, x='season', y='bowler_wicket', title=f'Total Wickets per Season: {selected_bowler}', color='bowler_wicket')
-            fig.update_layout(xaxis_tickangle=-45, template="plotly_white")
-            st.plotly_chart(fig, use_container_width=True)
-            
-        with col2:
-            important_stages = ['Final', 'Semi Final', '3rd Place Play-Off', 'Qualifier 1', 'Elimination Final', 'Qualifier 2', 'Eliminator']
-            imprt_df = all_df[all_df['stage'].isin(important_stages)]
-            imprt_wk_by_season = imprt_df.groupby('season')['bowler_wicket'].sum().reset_index()
-            if not imprt_wk_by_season.empty:
-                fig = px.bar(imprt_wk_by_season, x='season', y='bowler_wicket', title=f'Wickets in Important Matches: {selected_bowler}', color='bowler_wicket')
-                fig.update_layout(xaxis_tickangle=-45, template="plotly_white")
-                st.plotly_chart(fig, use_container_width=True)
-            else:
-                st.info("No wickets in important matches.")
+        dami_batter = dami_batter.sort_values('date')
+        dami_batter['match_seq'] = range(1, len(dami_batter) + 1)
 
-        # Economy & Average
-        abhi_blw = df.groupby(['match_id', 'bowler'])['runs_bowler'].sum().reset_index().rename(columns={'runs_bowler': 'runs_given'})
-        bowler_df = pd.merge(bowler_df, abhi_blw, on=['match_id', 'bowler'], how='left')
-        
-        abhi_blw1 = df.groupby(['match_id', 'bowler'])['valid_ball'].sum().reset_index()
-        abhi_blw1['Total over'] = abhi_blw1['valid_ball'] / 6
-        abhi_blw1 = abhi_blw1.drop(columns=['valid_ball'])
-        bowler_df = pd.merge(bowler_df, abhi_blw1, on=['match_id', 'bowler'], how='left')
-        
-        new_temp1 = bowler_df[bowler_df['bowler'] == selected_bowler]
-        tlt_run = new_temp1.groupby('season')['runs_given'].sum().reset_index().rename(columns={'runs_given': 'total_runs'})
-        tlt_ovr = new_temp1.groupby('season')['Total over'].sum().reset_index().rename(columns={'Total over': 'total_overs'})
-        
-        eco_avg_df = tlt_ovr
-        eco_avg_df['Total Run Given'] = tlt_run['total_runs']
-        eco_avg_df['economy'] = tlt_run['total_runs'] / tlt_ovr['total_overs']
-        
-        tlt_wkt = new_temp1.groupby('season')['bowler_wicket'].sum().reset_index().rename(columns={'bowler_wicket': 'total_wickets'})
-        eco_avg_df = pd.merge(eco_avg_df, tlt_wkt, on='season', how='left')
-        eco_avg_df['economy'] = round(eco_avg_df['economy'], 2)
-        eco_avg_df['avrage'] = eco_avg_df['Total Run Given'] / eco_avg_df['total_wickets']
-        
-        col1, col2 = st.columns(2)
-        with col1:
-            fig = px.line(eco_avg_df, x='season', y='economy', title=f'Economy Rate: {selected_bowler}', markers=True)
-            fig.update_layout(xaxis_tickangle=-45, template="plotly_white")
-            st.plotly_chart(fig, use_container_width=True)
-        with col2:
-            fig = px.line(eco_avg_df, x='season', y='avrage', title=f'Average per Wicket: {selected_bowler}', markers=True)
-            fig.update_layout(xaxis_tickangle=-45, template="plotly_white")
+        dami_batter['last_5_match_avg_run'] = dami_batter['batter_runs'].rolling(window=5).mean()
+
+        dami_batter = dami_batter.set_index('match_seq')
+        dami_batter = dami_batter.drop(columns=['batter', 'match_id'])
+
+        from statsmodels.tsa.arima.model import ARIMA
+        ari = ARIMA(dami_batter['last_5_match_avg_run'], order=(5, 1, 5))
+
+        ari_fit = ari.fit()
+        pred = ari_fit.predict(start=1, end =len(dami_batter)+15)
+        pred = pred.to_frame(name='predicted_5_matches_avg_run')
+        pred = pred.merge(dami_batter['last_5_match_avg_run'], left_index=True, right_index=True, how='left')
+
+        ## new prediction for seasonality
+        season_data = dami_batter.groupby('season')['batter_runs'].sum().reset_index()
+        season_data['season'] = season_data['season'].astype(int)
+        season_data = season_data.sort_values('season')
+
+        if len(season_data) < 3:
+            st.warning(f"Not enough season data for {selected_batter} to predict next season total (Need at least 3 seasons).")
+        else:
+            model = ARIMA(season_data['batter_runs'], order=(1, 1, 0)) 
+            model_fit = model.fit()
+                        
+            predi = model_fit.forecast(steps=1)
+            predi_val = predi.iloc[0]
+            predi_year = season_data['season'].max() + 1
+                        
+            st.metric(label=f"Predicted Total Runs for Season {predi_year}", value=f"{int(predi_val)}")
+
+            fig = go.Figure()
+            fig.add_trace(go.Bar(
+                x=season_data['season'],
+                y=season_data['batter_runs'],
+                name='Actual Season Runs',
+                marker_color='#3498db'
+            ))
+                        
+            fig.add_trace(go.Bar(
+                x=[predi_year],
+                y=[predi_val],
+                name='Predicted Next Season',
+                marker_color='#e74c3c'
+            ))
+                        
+            fig.update_layout(
+                title=f"Season-wise Total Runs Prediction for {selected_batter}",
+                xaxis_title="Season",
+                yaxis_title="Total Runs",
+                template="plotly_white"
+             )
             st.plotly_chart(fig, use_container_width=True)
 
-    with tab2:
-        st.subheader("Batter Statistics")
+
+        st.markdown('---')
+        st.subheader('📈 Match-by-Match Performance Trend')
+        st.write('# Predicted vs Actual Average Runs in Last 5 Matches')
+        st.line_chart(pred[['predicted_5_matches_avg_run', 'last_5_match_avg_run']])
+    
+    df_dami = df[['match_id', 'date', 'bowler', 'bowler_wicket', 'season']]
+    want_season = ['2021', '2022','2023', '2024', '2025']
+
+    df_dami['season'] = df_dami['season'].astype(str)
+
+    df_dami['season'] = df_dami['season'].replace({
+        '2007/08': '2008',
+        '2009/10': '2010',
+        '2020/21': '2020'
+    })
+
+    df_dami = df_dami[df_dami['season'].isin(want_season)]
+
+    dami_df = df_dami[['match_id', 'date', 'bowler', 'bowler_wicket']]
+    dami_df = dami_df.groupby(['date', 'bowler', 'match_id'])['bowler_wicket'].sum().reset_index()  
+  
+    uni_bowler = dami_df['bowler'].unique()
+
+    def bowler_pred(bowler):
+        df_dami = df[['match_id', 'date', 'bowler', 'bowler_wicket', 'season']]
+        want_season = ['2021', '2022','2023', '2024', '2025']
+
+        df_dami['season'] = df_dami['season'].astype(str)
+
+        df_dami['season'] = df_dami['season'].replace({
+            '2007/08': '2008',
+            '2009/10': '2010',
+            '2020/21': '2020'
+        })
+
+        df_dami = df_dami[df_dami['season'].isin(want_season)]
+
+        dami_df = df_dami[['match_id', 'date', 'bowler', 'bowler_wicket']]
+        dami_df = dami_df.groupby(['date', 'bowler', 'match_id'])['bowler_wicket'].sum().reset_index()  
+  
+        uni_bowler = dami_df['bowler'].unique()
+
+        ## change for seasonality
+        season_df = df[['match_id', 'season']]
+        season_df = season_df.drop_duplicates(subset=['match_id'])
+        dami_df = pd.merge(dami_df, season_df, on='match_id', how='left')
+        ## end change for seasonality
         
-        batter_df = df.groupby(['match_id', 'batter'])['runs_batter'].sum().reset_index()
-        batter_df = pd.merge(batter_df, df_ipl[['match_id', 'season']].drop_duplicates(), on='match_id', how='left')
-        batter_df = pd.merge(batter_df, df[['match_id', 'stage']].drop_duplicates(), on='match_id', how='left')
-        batter_df['season'] = batter_df['season'].astype('Int64')
-        
-        uni_batter = batter_df['batter'].unique().tolist()
-        selected_batter = st.selectbox("Select Batter", uni_batter, key="batter_select")
-        
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            all_df = batter_df[batter_df['batter'] == selected_batter]
-            all_run_by_season = all_df.groupby('season')['runs_batter'].sum().reset_index()
-            fig = px.bar(all_run_by_season, x='season', y='runs_batter', title=f'Total Runs per Season: {selected_batter}', color='runs_batter')
-            fig.update_layout(xaxis_tickangle=-45, template="plotly_white")
-            st.plotly_chart(fig, use_container_width=True)
-            
-        with col2:
-            important_stages = ['Final', 'Semi Final', '3rd Place Play-Off', 'Qualifier 1', 'Elimination Final', 'Qualifier 2', 'Eliminator']
-            imprt_df = all_df[all_df['stage'].isin(important_stages)]
-            imprt_run_by_season = imprt_df.groupby('season')['runs_batter'].sum().reset_index()
-            if not imprt_run_by_season.empty:
-                fig = px.bar(imprt_run_by_season, x='season', y='runs_batter', title=f'Runs in Important Matches: {selected_batter}', color='runs_batter')
-                fig.update_layout(xaxis_tickangle=-45, template="plotly_white")
-                st.plotly_chart(fig, use_container_width=True)
-            else:
-                st.info("No runs in important matches.")
-        
-        col1, col2 = st.columns(2)
-        with col1:
-            abhik = all_df.groupby(['season'])['match_id'].count().reset_index().rename(columns={'match_id': 'matches played'})
-            fig = px.line(abhik, x='season', y='matches played', title=f'Matches Played per Season: {selected_batter}', markers=True)
-            fig.update_layout(xaxis_tickangle=-45, template="plotly_white")
-            st.plotly_chart(fig, use_container_width=True)
-        with col2:
-            batter2 = all_df.groupby(['season'])['runs_batter'].mean().reset_index().rename(columns={'runs_batter': 'Average_Runs'})
-            fig = px.line(batter2, x='season', y='Average_Runs', title=f'Average Runs per Season: {selected_batter}', markers=True)
-            fig.update_layout(xaxis_tickangle=-45, template="plotly_white")
+        dami_batter = dami_df[dami_df['bowler'] == bowler]
+        dami_batter['date'] = pd.to_datetime(dami_batter['date'])
+        dami_batter.set_index('date', inplace=True)
+
+        dami_batter = dami_batter.sort_values('date')
+        dami_batter['match_seq'] = range(1, len(dami_batter) + 1)
+
+        dami_batter['actual_avg_wickets_of_7_match'] = dami_batter['bowler_wicket'].rolling(window=7).mean()
+
+        dami_batter = dami_batter.set_index('match_seq')
+        dami_batter = dami_batter.drop(columns=['bowler', 'match_id',])
+
+        from statsmodels.tsa.arima.model import ARIMA
+        ari = ARIMA(dami_batter['actual_avg_wickets_of_7_match'], order=(5, 1, 5))
+
+        ari_fit = ari.fit()
+ 
+        pred = ari_fit.predict(start=1, end=len(dami_batter)+15)
+        pred = pred.to_frame(name='predicted_7_match_avg_wickets')
+        pred = pred.merge(dami_batter['actual_avg_wickets_of_7_match'], left_index=True, right_index=True, how='left')
+
+                ## new prediction for seasonality
+        season_data = dami_batter.groupby('season')['bowler_wicket'].sum().reset_index()
+        season_data['season'] = season_data['season'].astype(int)
+        season_data = season_data.sort_values('season')
+
+        if len(season_data) < 3:
+            st.warning(f"Not enough season data for {selected_bowler} to predict next season total (Need at least 3 seasons).")
+        else:
+            model = ARIMA(season_data['bowler_wicket'], order=(1, 1, 0)) 
+            model_fit = model.fit()
+                        
+            predi = model_fit.forecast(steps=1)
+            predi_val = predi.iloc[0]
+            predi_year = season_data['season'].max() + 1
+                        
+            st.metric(label=f"Predicted Total Wickets for Season {predi_year}", value=f"{int(predi_val)}")
+
+            fig = go.Figure()
+            fig.add_trace(go.Bar(
+                x=season_data['season'],
+                y=season_data['bowler_wicket'],
+                name='Actual Season Wickets',
+                marker_color='#3498db'
+            ))
+                        
+            fig.add_trace(go.Bar(
+                x=[predi_year],
+                y=[predi_val],
+                name='Predicted Next Season',
+                marker_color='#e74c3c'
+            ))
+                        
+            fig.update_layout(
+                title=f"Season-wise Total Wickets Prediction for {selected_bowler}",
+                xaxis_title="Season",
+                yaxis_title="Total Wickets",
+                template="plotly_white"
+             )
             st.plotly_chart(fig, use_container_width=True)
 
-elif option == "City Analysis":
-    st.title('🏙️ City Analysis')
-    
-    city_df = df[['city', 'match_id', 'innings', 'stage', 'team_runs']]
-    city_df = pd.merge(city_df, df_ipl[['match_id', 'season']].drop_duplicates(), on='match_id', how='left')
-    city_df['season'] = city_df['season'].astype('Int64')
-    city_df = city_df.groupby(['match_id', 'city','season', 'innings'])['team_runs'].max().reset_index()
-    
-    city_df_1 = city_df[city_df['innings'] == 1]
-    uni_city = city_df_1['city'].unique().tolist()
-    city_df_2 = city_df[city_df['innings'] == 2]
-    
-    selected_city = st.selectbox("Select City", uni_city)
-    
-    tab1, tab2 = st.tabs(["Runs Analysis", "Match Counts"])
-    
-    with tab1:
-        col1, col2 = st.columns(2)
-        with col1:
-            temp = city_df_1[city_df_1['city'] == selected_city]
-            temp = temp.groupby(['season', 'innings'])['team_runs'].mean().reset_index()
-            fig = px.line(temp, x='season', y='team_runs', title=f'Avg Runs (1st Inning) in {selected_city}', markers=True)
-            fig.update_layout(xaxis_tickangle=-45, template="plotly_white")
-            st.plotly_chart(fig, use_container_width=True)
-        with col2:
-            temp2 = city_df_2[city_df_2['city'] == selected_city]
-            temp2 = temp2.groupby(['season', 'innings'])['team_runs'].mean().reset_index()
-            fig = px.line(temp2, x='season', y='team_runs', title=f'Avg Runs (2nd Inning) in {selected_city}', markers=True)
-            fig.update_layout(xaxis_tickangle=-45, template="plotly_white")
-            st.plotly_chart(fig, use_container_width=True)
-            
-        combo = pd.concat([temp, temp2])
-        fig = px.bar(combo, x='season', y='team_runs', color='innings', barmode='group', title=f'Comparison: 1st vs 2nd Inning Runs in {selected_city}')
-        fig.update_layout(xaxis_tickangle=-45, template="plotly_white")
-        st.plotly_chart(fig, use_container_width=True)
+        st.markdown('---')
+        st.subheader('📈 Match-by-Match Performance Trend')
+        st.write('# Predicted vs Actual Average Wickets in Last 7 Matches')
+        st.line_chart(pred[['predicted_7_match_avg_wickets', 'actual_avg_wickets_of_7_match']])
 
-    with tab2:
-        t_count = city_df_1.groupby(['season', 'city'])['match_id'].count().reset_index().rename(columns={'match_id': 'matches_played'})
-        total_match = t_count.groupby('season')['matches_played'].sum().reset_index().rename(columns={'matches_played': 'total_matches'})
-        
-        count = t_count[t_count['city'] == selected_city]
-        
-        col1, col2 = st.columns(2)
-        with col1:
-            fig = px.bar(count, x='season', y='matches_played', title=f'Matches Played in {selected_city}', color='matches_played')
-            fig.update_layout(xaxis_tickangle=-45, template="plotly_white")
-            st.plotly_chart(fig, use_container_width=True)
-        with col2:
-            value = count['matches_played'].sum()
-            value2 = total_match['total_matches'].sum()
-            fig = px.pie(values=[value, value2], names=[f'{selected_city}', 'Other Cities'], title=f'Share of Matches Hosted by {selected_city}', hole=0.4)
-            st.plotly_chart(fig, use_container_width=True)
-            
-        trac1 = go.Bar(x=count['season'], y=count['matches_played'], name=f'{selected_city}')
-        trac2 = go.Bar(x=total_match['season'], y=total_match['total_matches'], name='Total Matches')
-        fig = go.Figure(data=[trac1, trac2], layout=go.Layout(barmode='group', title=f'Matches in {selected_city} vs Total Matches per Season', template="plotly_white"))
-        st.plotly_chart(fig, use_container_width=True)
+    if player_type == 'Batter':
+        st.subheader('Batter Performance Prediction')
+        selected_batter = st.selectbox("Select Batter", uni_batter)
+        batter_pred(selected_batter)
+    else:
+        st.subheader('Bowler Performance Prediction')
+        selected_bowler = st.selectbox("Select Bowler", uni_bowler)
+        bowler_pred(selected_bowler)
+
+
+
+
+
+
+
+
+
+
